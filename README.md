@@ -30,7 +30,9 @@ Repository directory structure:
 │   ├── DevOpsChallenge.SalesApi.Business.UnitTests
 │   │   ├── DevOpsChallenge.SalesApi.Business.UnitTests.csproj
 │   │   └── ... (test files)
-│   ├── ...(other folders)
+│   └── ... (other folders)
+├── Dockerfile
+├── README.md
 └── .github
     └── workflows
         └── CI-dev.yaml
@@ -202,6 +204,11 @@ jobs:
 **Vulnerability Scanning:** Trivy is employed to scan both the Docker image and codebase for vulnerabilities, allowing early detection of potential security issues.
 
 **Code Quality Analysis:** SonarCloud performs code quality and security checks to ensure adherence to best practices and coding standards.
+
+
+## Screenshots
+
+![alt text](image.png)
 
 ## Conclusion
 
