@@ -50,11 +50,33 @@ jobs:
           ./.sonar/scanner/dotnet-sonarscanner begin /k:"Pasan-Wijerathne_swivel-devops-challenge" /o:"pasan-wijerathne" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io"
           dotnet build
           ./.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+  
+  docker-image-scan:
+    name: Build
+    runs-on: ubuntu-20.04
+    needs: sonar-scan
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Build an image from Dockerfile
+        run: |
+          docker build -t docker.io/pasanpw/swivel-devops-challenge:${{ github.sha }} .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: 'docker.io/pasanpw/swivel-devops-challenge:${{ github.sha }}'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
 
   docker-build-push:
     name: Docker Build and Push
     runs-on: ubuntu-latest
-    needs: sonar-scan
+    needs: [sonar-scan, docker-image-scan]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -76,4 +98,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: pasanpw/swivel-devops-challenge:latest
+          tags: pasanpw/swivel-devops-challenge:${{ github.sha }}
