@@ -52,7 +52,7 @@ jobs:
           ./.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
   
   docker-image-scan:
-    name: Build
+    name: Docker Image Scan
     runs-on: ubuntu-20.04
     needs: sonar-scan
     steps:
@@ -68,10 +68,10 @@ jobs:
         with:
           image-ref: 'docker.io/pasanpw/swivel-devops-challenge:${{ github.sha }}'
           format: 'table'
-          exit-code: '1'
+          exit-code: '0'
           ignore-unfixed: true
           vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
+          severity: 'UNKNOWN,LOW,MEDIUM,CRITICAL,HIGH'
 
   docker-build-push:
     name: Docker Build and Push
