@@ -86,7 +86,14 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          jq '.Results[] | .Vulnerabilities[] | "\(.VulnerabilityID) - \(.Severity) - \(.PkgName) - \(.InstalledVersion)"' trivy-report.json | head -n 20 >> $GITHUB_STEP_SUMMARY
+
+          # Check if trivy-report.json exists and is not empty
+          if [ -s trivy-report.json ]; then
+            # Parse JSON and extract vulnerability details
+            jq -r '.Results[] | .Vulnerabilities[] | "\(.VulnerabilityID) - \(.Severity) - \(.PkgName) - \(.InstalledVersion)"' trivy-report.json | head -n 20 >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No Trivy report found or the report is empty." >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Upload Trivy report artifact
         if: always()
@@ -96,7 +103,7 @@ jobs:
           path: trivy-report.json
 
   docker-build-push:
-    name: Docker Build and Push
+    name: Docker Build And Push
     runs-on: ubuntu-latest
     needs: [sonar-scan, docker-image-scan]
     steps:
