@@ -73,13 +73,13 @@ jobs:
           vuln-type: 'os,library'
           severity: 'UNKNOWN,LOW,MEDIUM,CRITICAL,HIGH'
           output: trivy-report.json
-          
+
       - name: Display Trivy scan results
         if: always()
         run: |
           echo "## Trivy Vulnerability Scan Results" >> $GITHUB_STEP_SUMMARY
-          trivy image --input trivy-report.json --format template --template "@/contrib/html.tpl" >> $GITHUB_STEP_SUMMARY
-
+          cat trivy-report.json >> $GITHUB_STEP_SUMMARY
+          
       - name: Upload Trivy report artifact
         if: always()
         uses: actions/upload-artifact@v3
