@@ -164,7 +164,7 @@ jobs:
           tags: pasanpw/swivel-devops-challenge:${{ github.sha }}
 ```
 
-## Workflow Steps Explanation :blue_book:
+## Workflow Steps Explanation :
 
 ### Sonar Scan And Analyze Job:
 
