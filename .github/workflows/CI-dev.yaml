@@ -1,12 +1,13 @@
-name: SonarCloud
+name: CI Pipeline
 on:
   push:
     branches:
       - main
   pull_request:
     types: [opened, synchronize, reopened]
+    
 jobs:
-  build:
+  sonar-scan:
     name: Build and analyze
     runs-on: ubuntu-latest
     steps:
@@ -49,3 +50,29 @@ jobs:
           ./.sonar/scanner/dotnet-sonarscanner begin /k:"Pasan-Wijerathne_swivel-devops-challenge" /o:"pasan-wijerathne" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io"
           dotnet build
           ./.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+
+  docker-build-push:
+    name: Docker Build and Push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: pasanpw/swivel-devops-challenge:latest
