@@ -79,22 +79,6 @@ jobs:
           severity: 'UNKNOWN,LOW,MEDIUM,CRITICAL,HIGH'
           output: trivy-report.json
 
-      - name: Display Trivy scan summary
-        if: always()
-        run: |
-          echo "## Trivy Vulnerability Scan Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Check if trivy-report.json exists and is not empty
-          if [ -s trivy-report.json ]; then
-            # Parse JSON and extract vulnerability details
-            jq -r '.Results[] | .Vulnerabilities[] | "\(.VulnerabilityID) - \(.Severity) - \(.PkgName) - \(.InstalledVersion)"' trivy-report.json | head -n 20 >> $GITHUB_STEP_SUMMARY
-          else
-            echo "No Trivy report found or the report is empty." >> $GITHUB_STEP_SUMMARY
-          fi
-
       - name: Upload Trivy report artifact
         if: always()
         uses: actions/upload-artifact@v3
