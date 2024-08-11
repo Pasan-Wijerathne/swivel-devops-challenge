@@ -8,7 +8,7 @@ on:
 
 jobs:
   sonar-scan:
-    name: Build and analyze
+    name: Sonar Scan And Analyze
     runs-on: ubuntu-latest
     steps:
       - name: Set up JDK 17
@@ -58,6 +58,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+      
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
 
       - name: Build an image from Dockerfile
         run: |
@@ -74,12 +79,15 @@ jobs:
           severity: 'UNKNOWN,LOW,MEDIUM,CRITICAL,HIGH'
           output: trivy-report.json
 
-      - name: Display Trivy scan results
+      - name: Display Trivy scan summary
         if: always()
         run: |
-          echo "## Trivy Vulnerability Scan Results" >> $GITHUB_STEP_SUMMARY
-          cat trivy-report.json >> $GITHUB_STEP_SUMMARY
-          
+          echo "## Trivy Vulnerability Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          jq '.Results[] | .Vulnerabilities[] | "\(.VulnerabilityID) - \(.Severity) - \(.PkgName) - \(.InstalledVersion)"' trivy-report.json | head -n 20 >> $GITHUB_STEP_SUMMARY
+
       - name: Upload Trivy report artifact
         if: always()
         uses: actions/upload-artifact@v3

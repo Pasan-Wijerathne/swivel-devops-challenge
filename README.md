@@ -1,69 +1,208 @@
-# DevOps Challenge (.NET)
+# CI Pipeline for .NET 5 Application with Trivy Vulnerability Scanning and SonarCloud Integration
 
-## Overview :wave:
+## Overview
 
-This challenge focuses on the diverse skills needed by a DevOps Engineer to develop a.NET 5 application.
+This guide details the process of setting up a CI/CD pipeline for a .NET 5 application using GitHub Actions. The pipeline covers building and pushing a Docker image, conducting vulnerability scans with Trivy, performing code quality and security checks using SonarCloud, and executing integration tests on the Docker image.
 
-In completing the challenge, you're welcome to change all aspects of the initial repository, including:
-* Directory and file structure.
-* Solution and project names.
-* Namespaces and class names.
-* Code, data, and settings files.
-* NuGet packages and dependencies.
-* This README!
+## Prerequisites
 
-The solution should embody best practices, even if the initial solution lacks them.
+- **GitHub Repository**: Have a GitHub repository containing your .NET 5 application.
+- **DockerHub Account**: Register for a DockerHub account and obtain an access token.
+- **SonarCloud Account**: Sign up for a SonarCloud account, create a project, and generate an access token.
+- **Trivy**: Trivy is a free, open-source vulnerability scanner designed for containers and other artifacts.
+- **GitHub Secrets**: Ensure the following secrets are added to your GitHub repository:
+  - `DOCKERHUB_USERNAME`: Your DockerHub username.
+  - `DOCKERHUB_TOKEN`: Your DockerHub access token.
+  - `SONAR_TOKEN`: Your SonarCloud access token.
 
-You'll need .NET 5 and SQL Server Local DB to build and run the application locally. On a Mac or Linux device, you can update the connection string (in `appsettings.Development.json` and `DatabaseContextDesignTimeFactory.cs`) and use Docker to launch SQL Server Developer Edition.
+## Directory Structure
 
-## Background :blue_book:
+Repository directory structure:
 
-You're a DevOps Engineer working in a small team to launch a new application. The management team will use the new application to view and report on daily sales data.
+```plaintext
+.
+├── src
+│   ├── DevOpsChallenge.SalesApi
+│   │   ├── appsettings.Development.json
+│   │   └── ... (other source files)
+│   └── ... (other folders)
+├── tests
+│   ├── DevOpsChallenge.SalesApi.Business.UnitTests
+│   │   ├── DevOpsChallenge.SalesApi.Business.UnitTests.csproj
+│   │   └── ... (test files)
+│   ├── ...(other folders)
+└── .github
+    └── workflows
+        └── CI-dev.yaml
+```
 
-The development team have built a new API to ingest sales data from an existing system and provide endpoints for viewing and reporting the data. A future application will provide a user interface.
+## GitHub Actions Workflow
 
-*Note: For simplicity of the solution, the API does not require authentication. Don't do this in a real application!*
+Create a GitHub Actions workflow file (`.github/workflows/CI-dev.yaml`) with the following content:
 
-## Question :question:
+### YAML Configuration
 
-You should:
+Below is the configuration used for the GitHub Actions CI pipeline:
 
-1. Introduce best practices into the solution to ensure a high-quality deliverable and a great developer experience.
+```yaml
+name: CI Pipeline
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
 
-2. Build and package the application as a container in a CI/CD pipeline ready for deployment
+jobs:
+  sonar-scan:
+    name: Sonar Scan And Analyze
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: 17
+          distribution: 'zulu'
+          
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-You'll need to select a CI/CD tool to complete the challenge. Feel free to use your preferred platform, such as GitHub Actions, Azure Pipelines, Circle CI, or Travis CI.
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
 
-*Note: This challenge does NOT require infrastructure provisioning or deployment. This challenge has designed to be possible without incurring any licencing, hosting or tooling costs.*
+      - name: Cache SonarCloud scanner
+        id: cache-sonar-scanner
+        uses: actions/cache@v3
+        with:
+          path: .sonar/scanner
+          key: ${{ runner.os }}-sonar-scanner
+          restore-keys: ${{ runner.os }}-sonar-scanner
 
-## Good to have (optional) :zap:
+      - name: Install SonarCloud scanner
+        if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p .sonar/scanner
+          dotnet tool update dotnet-sonarscanner --tool-path .sonar/scanner
 
-You've received feedback on the application from members of the project team. Optionally, fix these issues, or provide instructions back to the developer on the next steps to take:
+      - name: Build and analyze
+        env:
+          # GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          ./.sonar/scanner/dotnet-sonarscanner begin /k:"Pasan-Wijerathne_swivel-devops-challenge" /o:"pasan-wijerathne" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io"
+          dotnet build
+          ./.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
 
-1. The front end developer consuming the Sales API has mentioned the Swagger UI interface doesn't contain descriptions of operations, parameters, or responses. The Swagger UI interface should display the code comments written by the API developer.
+  docker-image-scan:
+    name: Docker Image Scan
+    runs-on: ubuntu-20.04
+    needs: sonar-scan
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-2. The security team have identified the application is revealing the technology used by sending the response header `Server: Kestrel`. This header should not be present in responses sent by the server.
+      - name: Build an image from Dockerfile
+        run: |
+          docker build -t docker.io/pasanpw/swivel-devops-challenge:${{ github.sha }} .
 
-3. The database administrator has identified poor query performance when a sale record is retrieved using its transaction ID. They have recommended creating an index.
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: 'docker.io/pasanpw/swivel-devops-challenge:${{ github.sha }}'
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'UNKNOWN,LOW,MEDIUM,CRITICAL,HIGH'
+          output: trivy-report.json
 
-## Attempt :clock5:
+      - name: Display Trivy scan results
+        if: always()
+        run: |
+          echo "## Trivy Vulnerability Scan Results" >> $GITHUB_STEP_SUMMARY
+          cat trivy-report.json >> $GITHUB_STEP_SUMMARY
 
-Spend as much or as little time as you like on this challenge. DevOps Engineers wear many hats :crown:, and there's always more opportunity for change and improvement. **Limit yourself to the time you have. Make the changes that deliver the most value.**
+      - name: Upload Trivy report artifact
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: trivy-report
+          path: trivy-report.json
 
-If you're looking for inspiration of changes to make, consider:
+  docker-build-push:
+    name: Docker Build and Push
+    runs-on: ubuntu-latest
+    needs: [sonar-scan, docker-image-scan]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-* Getting started documentation for a new developer.
-* Configuring Git's behaviour for particular files.
-* Versioning of artifacts.
-* Linting and code quality analysis.
-* Scanning for code vulnerabilities.
-* Running unit tests.
-* Assessing code coverage.
-* Indexing PDBs for debugging in a deployed environment.
-* Preparing to run integration tests on a deployed environment.
-* Preparing to deploy database schema migrations.
-* Generating a client for the API.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-There's always more to learn and do. **You don't need to do all of these to demonstrate your ability.** This list is a suggestion of ideas. You're welcome to do something else.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-Be kind to yourself, and enjoy the challenge. :heart:
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: pasanpw/swivel-devops-challenge:${{ github.sha }}
+```
+
+## Workflow Steps Explanation :blue_book:
+
+### Sonar Scan And Analyze Job:
+
+- **Set up JDK 17 :** Configures the Java Development Kit (JDK) 17, which is required by SonarCloud for analysis.
+- **Checkout :** Checks out the repository to make the code available for SonarCloud analysis.
+- **Cache SonarCloud packages :** Caches SonarCloud packages to speed up the analysis by avoiding repeated downloads.
+- **Cache SonarCloud scanner :** Caches the SonarCloud scanner to speed up the setup process by avoiding repeated installations.
+- **Install SonarCloud scanner :** Installs the SonarCloud scanner tool if it’s not already cached. This tool is necessary for running the SonarCloud analysis.
+- **Build and analyze :** Runs the SonarCloud analysis on the .NET project. This involves starting the scanner, building the project, and then ending the scan to upload the results to SonarCloud.
+
+### Docker Image Scan Job:
+
+- **Checkout code :** Checks out the repository to access the Dockerfile and the code for building the Docker image.
+- **Build an image from Dockerfile :** Builds a Docker image using the Dockerfile located in the repository.
+- **Run Trivy vulnerability scanner :** Uses Trivy to scan the Docker image for vulnerabilities. The results are outputted in a JSON format.
+- **Display Trivy scan results :** Outputs the results of the Trivy scan to the GitHub Actions summary for visibility.
+- **Upload Trivy report artifact :** Uploads the Trivy scan results as an artifact, which can be downloaded and reviewed later.
+
+### Docker Build and Push Job:
+
+- **Checkout :** Checks out the repository to access the Dockerfile and source code for building the Docker image.
+- **Set up QEMU :** Configures QEMU for cross-platform builds, allowing Docker images to be built for different architectures.
+- **Set up Docker Buildx :** Sets up Docker Buildx, which enables advanced Docker build features like multi-platform builds.
+- **Login to Docker Hub :** Authenticates with Docker Hub using the provided credentials, allowing Docker images to be pushed to the Docker Hub registry.
+- **Build and push :** Builds the Docker image and pushes it to Docker Hub, tagging it with the current commit SHA for versioning.
+
+## Best Practices
+
+**Modular Jobs :** Each job in the workflow focuses on a specific task, making the workflow modular and easier to maintain.
+
+**Secrets Management :** Sensitive information such as DockerHub credentials and SonarCloud tokens are securely managed using GitHub Secrets.
+
+**Caching :** Caching is used to speed up the workflow by avoiding repeated downloads and installations.
+
+**Dependency Management :** Dependencies are managed effectively to ensure consistency and reliability across different workflow runs.
+
+**Vulnerability Scanning :** Trivy is used to scan both the Docker image and the codebase for vulnerabilities, helping to ensure that security issues are detected early.
+
+**Code Quality Analysis :** SonarCloud is used for code quality and security analysis, ensuring that code adheres to best practices and standards.
+
+## Conclusion
+
+This documentation provides a comprehensive guide to setting up a CI/CD pipeline for a .NET 5 application using GitHub Actions. The pipeline includes steps for building and pushing a Docker image, scanning for vulnerabilities using Trivy, performing code quality analysis using SonarCloud, and running integration tests. By following this guide, you can ensure a high-quality deliverable and a streamlined development workflow.
