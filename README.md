@@ -210,6 +210,8 @@ jobs:
 
 ![alt text](image.png)
 
+![alt text](image-1.png)
+
 ## Conclusion
 
 This guide outlines how to establish a CI/CD pipeline for a .NET 5 application using GitHub Actions. It covers the process of building and pushing Docker images, scanning for vulnerabilities with Trivy, analyzing code quality with SonarCloud, and running integration tests. Adhering to these practices will help ensure high-quality deliverables and an efficient development process.
