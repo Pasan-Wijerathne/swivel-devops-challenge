@@ -1,4 +1,4 @@
-# CI Pipeline for .NET 5 Application with Trivy Vulnerability Scanning and SonarCloud Integration
+# DevOps Challenge - Vulnerability Scanning and Sonar Integration
 
 ## Overview
 
@@ -6,10 +6,6 @@ This guide details the process of setting up a CI/CD pipeline for a .NET 5 appli
 
 ## Prerequisites
 
-- **GitHub Repository**: Have a GitHub repository containing your .NET 5 application.
-- **DockerHub Account**: Register for a DockerHub account and obtain an access token.
-- **SonarCloud Account**: Sign up for a SonarCloud account, create a project, and generate an access token.
-- **Trivy**: Trivy is a free, open-source vulnerability scanner designed for containers and other artifacts.
 - **GitHub Secrets**: Ensure the following secrets are added to your GitHub repository:
   - `DOCKERHUB_USERNAME`: Your DockerHub username.
   - `DOCKERHUB_TOKEN`: Your DockerHub access token.
@@ -196,8 +192,6 @@ jobs:
 **Modular Jobs:** Each workflow job is designed to handle a specific task, which makes the overall workflow more modular and easier to manage.
 
 **Secrets Management:** Sensitive credentials, including DockerHub and SonarCloud tokens, are securely stored and managed using GitHub Secrets.
-
-**Caching:** Implementing caching in the workflow reduces time spent on repetitive downloads and installations, thereby improving efficiency.
 
 **Dependency Management:** Proper management of dependencies ensures consistent and reliable builds across different runs of the workflow.
 
